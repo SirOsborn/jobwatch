@@ -1,4 +1,5 @@
 name: JobWatch
+# re-index trigger
 
 on:
   schedule:
