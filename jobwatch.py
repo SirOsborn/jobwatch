@@ -45,19 +45,36 @@ def log(msg):
         print(f"[debug] {msg}", file=sys.stderr)
 
 
-def fetch(url, data=None, timeout=30, headers=None):
-    h = {"User-Agent": UA, "Accept": "*/*"}
+def fetch(url, data=None, timeout=None, headers=None, retries=None):
+    """GET/POST with retry.
+
+    Cambodian and NGO sites are slow or flaky from overseas datacentre IPs
+    (GitHub runners in particular), so a single short attempt silently drops
+    the highest-priority sources. Retry with a growing timeout before giving up.
+    """
+    timeout = timeout or int(os.environ.get("JOBWATCH_TIMEOUT", "45"))
+    retries = retries if retries is not None else 3
+    h = {"User-Agent": UA, "Accept": "*/*",
+         "Accept-Language": "en-US,en;q=0.9"}
     if data is not None:
         h["Content-Type"] = "application/json"
     if headers:
         h.update(headers)
     body = json.dumps(data).encode() if data is not None else None
-    req = urllib.request.Request(url, data=body, headers=h)
-    with urllib.request.urlopen(req, timeout=timeout, context=_ctx) as r:
-        return r.read()
+    last = None
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(url, data=body, headers=h)
+            with urllib.request.urlopen(req, timeout=timeout + attempt * 20, context=_ctx) as r:
+                return r.read()
+        except Exception as e:
+            last = e
+            if attempt < retries - 1:
+                time.sleep(2 + attempt * 3)
+    raise last
 
 
-def fetch_json(url, data=None, timeout=30, headers=None):
+def fetch_json(url, data=None, timeout=None, headers=None):
     return json.loads(fetch(url, data=data, timeout=timeout, headers=headers))
 
 
