@@ -34,6 +34,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           JOBWATCH_DATA_DIR: ${{ github.workspace }}/state
+          JOBWATCH_DEBUG: '1'
         run: |
           mkdir -p state
           python jobwatch.py --telegram
