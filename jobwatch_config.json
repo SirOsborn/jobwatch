@@ -1,0 +1,133 @@
+{
+  "_comment": "JobWatch config for Sun Heng. Tuned for AI/ML ENGINEERING and applied-AI full-stack roles (technical track, not business analytics). Cambodia is top priority. No AI tokens are used by the watcher.",
+
+  "data_dir": "C:/Users/PureGoat/OneDrive/Documents/JobWatch",
+
+  "score_threshold": 60,
+  "max_alerts_per_run": 8,
+  "max_description_chars": 400,
+
+  "_core_note": "A posting MUST contain at least one of these or it is rejected outright. Stops admin/office roles that merely mention 'reporting' from scoring high.",
+  "core_role_keywords": [
+    "ai engineer", "ml engineer", "machine learning", "deep learning",
+    "artificial intelligence", "computer vision", "llm", "nlp", "genai",
+    "software engineer", "software develop", "developer", "full stack",
+    "fullstack", "backend", "front end", "frontend", "web develop",
+    "devops", "cloud engineer", "platform engineer", "site reliability",
+    "data engineer", "data scien", "data analy", "data pipeline", "etl",
+    "python", " sql", "react", "node.js", "typescript", "golang",
+    "analytics", "business intelligence", "power bi", "statistic",
+    "database", "it officer", "technology officer", "research intern",
+    "research assistant", "programmer", "system analyst", "automation engineer"
+  ],
+
+  "_weight_note": "Engineering titles outrank analytics ones deliberately: the user is building a technical/engineering career, and Power BI / BI work is a supporting credential rather than the target role.",
+  "role_keywords": {
+    "ai engineer": 40, "ml engineer": 40, "machine learning": 34, "deep learning": 32,
+    "artificial intelligence": 30, "computer vision": 30, "llm": 30, "genai": 28,
+    "nlp": 24, "mlops": 26,
+    "software engineer": 30, "software develop": 28, "full stack": 28, "fullstack": 28,
+    "backend": 26, "web develop": 22, "developer": 20, "frontend": 18, "front end": 18,
+    "programmer": 18, "devops": 16, "cloud engineer": 20, "platform engineer": 18,
+    "data engineer": 28, "data pipeline": 22, "etl": 16, "database": 14,
+    "python": 18, "react": 16, "typescript": 14, "golang": 14, "node.js": 12,
+    "aws": 12, "docker": 10, "kubernetes": 10, "api": 8,
+    "data scien": 24, "statistic": 12, "research assistant": 10,
+    "data analy": 16, "analytics": 12, "business intelligence": 10, "power bi": 12,
+    "dashboard": 8, "reporting": 4, "risk": 4,
+    "automation": 14, "digital transformation": 12, "it officer": 16,
+    "technology officer": 14, "system analyst": 14
+  },
+
+  "level_keywords": {
+    "intern": 28, "internship": 28, "co-op": 30, "coop": 22, "graduate program": 26,
+    "graduate scheme": 26, "entry level": 24, "junior": 24, "trainee": 22,
+    "fellowship": 24, "fellow": 12, "scholarship": 20, "early career": 22,
+    "placement": 24, "apprentice": 16, "associate": 12, "new grad": 24,
+    "6 months": 18, "six months": 18, "12 months": 14, "8 months": 14
+  },
+
+  "location_bonus": {
+    "cambodia": 50, "phnom penh": 50, "siem reap": 45, "kh": 0,
+    "remote": 28, "anywhere": 25, "worldwide": 25, "work from home": 18,
+    "singapore": 22, "vietnam": 20, "ho chi minh": 20, "hanoi": 20,
+    "malaysia": 20, "kuala lumpur": 20, "indonesia": 16, "jakarta": 16,
+    "philippines": 14, "manila": 14, "laos": 16, "vientiane": 16,
+    "hong kong": 18, "japan": 12, "korea": 12, "seoul": 12, "tokyo": 12,
+    "bangkok": -25, "thailand": -25
+  },
+
+  "sponsor_positive": [
+    "visa sponsorship", "sponsor visa", "will sponsor", "relocation support",
+    "relocation assistance", "international applicants", "open to all nationalities",
+    "work permit support", "visa support", "any nationality", "globally remote",
+    "remote worldwide", "worldwide remote"
+  ],
+
+  "sponsor_negative": [
+    "must be legally authorized", "must have the right to work",
+    "no visa sponsorship", "not able to sponsor", "unable to sponsor",
+    "without sponsorship", "do not provide sponsorship", "security clearance",
+    "must be a citizen", "permanent resident only", "citizens only"
+  ],
+
+  "_exclude_note": "'senior' and 'lead ' are excluded because the user is a 2027 graduate; Cambodian employers list many senior engineering roles that would otherwise dominate the digest.",
+  "exclude_title": [
+    "senior", "principal", "staff ", "lead ", "head of", "director", "vp ",
+    "vice president", "manager ii", "10+ years", "8+ years", "architect",
+    "sales representative", "insurance agent", "financial advisor", "telemarket",
+    "driver", "cleaner", "security guard", "waiter", "cashier", "chef", "nurse",
+    "teacher of english", "call center", "call centre", "customer service representative",
+    "office assistant", "administrative assistant", "executive assistant",
+    "virtual assistant", "data entry", "bookkeep", "receptionist", "secretary",
+    "quality administrator", "project administrator", "accounts payable",
+    "recruiter", "copywriter", "content writer", "social media manager",
+    "relationship officer", "credit officer", "teller", "branch manager",
+    "loan officer", "collection officer"
+  ],
+
+  "scam_signals": [
+    "registration fee", "pay a fee", "processing fee", "training fee",
+    "earn $", "daily payout", "quick money", "no experience needed high salary",
+    "whatsapp only", "telegram only", "contact on whatsapp", "crypto investment",
+    "send your id card", "upfront payment", "guaranteed income",
+    "usdt", "forex trading opportunity", "binary option", "investment scheme"
+  ],
+
+  "_workday_note": "Add employers here as you find them. Open the careers page: URL is https://HOST/en-US/SITE/... and the API is https://HOST/wday/cxs/TENANT/SITE/jobs. Wrong values give 404/422 and are skipped silently.",
+  "workday_tenants": [
+    {"name": "Manulife / John Hancock", "host": "manulife.wd3.myworkdayjobs.com", "tenant": "manulife", "site": "MFCJH_Jobs"}
+  ],
+
+  "workday_search_terms": ["intern", "data", "engineer", "developer", "graduate"],
+
+  "greenhouse_boards": [],
+  "lever_boards": [],
+  "ashby_boards": [],
+
+  "_html_careers_note": "Server-rendered careers pages (most Cambodian employers). link_pattern is a regex the posting href must match. BongThom and CamHR are JavaScript apps and cannot be scraped this way.",
+  "html_careers": [
+    {
+      "name": "Wing Bank",
+      "url": "https://www.wingbank.com.kh/en/careers/",
+      "base": "https://www.wingbank.com.kh",
+      "link_pattern": "/careers/[a-z0-9\\-]{4,}",
+      "location": "Phnom Penh, Cambodia"
+    },
+    {
+      "name": "Smart Axiata",
+      "url": "https://www.smart.com.kh/careers/",
+      "base": "https://www.smart.com.kh",
+      "link_pattern": "/careers/\\d+/[a-z0-9\\-]+",
+      "location": "Phnom Penh, Cambodia"
+    }
+  ],
+
+  "rss_feeds": [
+    {"name": "ReliefWeb Jobs (UN/NGO/dev sector)", "url": "https://reliefweb.int/jobs/rss.xml"}
+  ],
+
+  "enable_remoteok": true,
+  "enable_remotive": true,
+  "remotive_categories": ["data", "software-dev"]
+}

@@ -1,0 +1,52 @@
+name: JobWatch
+
+on:
+  schedule:
+    # Every 4 hours, on the hour (UTC). GitHub queues these on shared runners,
+    # so actual firing time can drift by several minutes.
+    - cron: '0 */4 * * *'
+  workflow_dispatch:        # lets you trigger a run by hand from the Actions tab
+
+permissions:
+  contents: write           # needed to commit seen.json back to the repo
+
+concurrency:
+  group: jobwatch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run JobWatch
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          JOBWATCH_DATA_DIR: ${{ github.workspace }}/state
+        run: |
+          mkdir -p state
+          python jobwatch.py --telegram
+
+      - name: Persist seen/history state
+        run: |
+          git config user.name  "jobwatch-bot"
+          git config user.email "jobwatch-bot@users.noreply.github.com"
+          git add state/ || true
+          if git diff --staged --quiet; then
+            echo "no state change"
+          else
+            git commit -m "jobwatch: state $(date -u +%Y-%m-%dT%H:%MZ)"
+            # Another run may have pushed while this one was working.
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
