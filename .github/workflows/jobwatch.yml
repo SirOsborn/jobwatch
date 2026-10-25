@@ -35,6 +35,9 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           JOBWATCH_DATA_DIR: ${{ github.workspace }}/state
           JOBWATCH_DEBUG: '1'
+          # Cambodian sites + ReliefWeb time out from GitHub's US runners;
+          # the local machine covers those. Keeps the two jobs disjoint.
+          JOBWATCH_SKIP: 'src_html_careers,src_rss'
         run: |
           mkdir -p state
           python jobwatch.py --telegram

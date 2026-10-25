@@ -483,8 +483,17 @@ def main():
         return 0
 
     # 1. fetch everything (free)
+    # JOBWATCH_ONLY / JOBWATCH_SKIP select which adapters run. Cambodian sites
+    # and ReliefWeb are unreachable from overseas CI runners, so the cloud job
+    # takes the global sources and the local machine takes the regional ones --
+    # a disjoint split, so neither alerts about the same posting twice.
+    only = {s.strip() for s in os.environ.get("JOBWATCH_ONLY", "").split(",") if s.strip()}
+    skip = {s.strip() for s in os.environ.get("JOBWATCH_SKIP", "").split(",") if s.strip()}
+    active = [fn for fn in SOURCES
+              if (not only or fn.__name__ in only) and fn.__name__ not in skip]
+
     jobs, errors = [], []
-    for fn in SOURCES:
+    for fn in active:
         try:
             got = fn(cfg)
             jobs.extend(got)
