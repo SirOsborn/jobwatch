@@ -115,6 +115,17 @@ def esc(s):
             .replace(">", "&gt;"))
 
 
+def esc_md(s):
+    """Escape text for Telegram standard Markdown (Hermes cron delivery).
+
+    Only escapes characters that would trigger formatting: * _ [ ] ` ~
+    """
+    s = str(s or "")
+    for ch in ("*", "_", "[", "]", "`", "~"):
+        s = s.replace(ch, "\\" + ch)
+    return s
+
+
 def clean(text, limit=None):
     if not text:
         return ""
@@ -516,6 +527,62 @@ def send_telegram(text):
     return ok
 
 
+def _render_html(show, fresh, stamp, scope):
+    """Render digest in Telegram HTML for direct Bot API delivery."""
+    head = f"🎯 <b>JobWatch</b>{(' · ' + esc(scope)) if scope else ''}"
+    lines = [f"{head}  <i>{stamp}</i>",
+             f"<b>{len(fresh)}</b> new match{'es' if len(fresh) != 1 else ''}",
+             "➖➖➖➖➖➖➖➖➖➖"]
+
+    for i, j in enumerate(show, 1):
+        tag = ""
+        if "SPONSOR-FRIENDLY" in j["flags"]:
+            tag = "  ✅ <i>sponsor</i>"
+        elif "NEEDS-LOCAL-AUTH" in j["flags"]:
+            tag = "  ⚠️ <i>needs local auth</i>"
+
+        meta = " · ".join(x for x in [esc(j["company"]), esc(j["location"])] if x)
+        lines.append("")
+        lines.append(f"<b>{i}. {esc(j['title'])}</b>{tag}")
+        lines.append(f"<i>{meta}</i>")
+        lines.append(f"⭐ {j['score']}  ·  <a href=\"{esc(j['url'])}\">Open posting</a>")
+
+    lines.append("")
+    lines.append("➖➖➖➖➖➖➖➖➖➖")
+    if len(fresh) > len(show):
+        lines.append(f"<i>+{len(fresh) - len(show)} more saved to history</i>")
+    lines.append("Send <code>/tailor N</code> to build a CV + cover letter.")
+    return "\n".join(lines)
+
+
+def _render_md(show, fresh, stamp, scope):
+    """Render digest in Markdown for Hermes cron stdout delivery."""
+    head = f"🎯 **JobWatch**{(' · ' + esc_md(scope)) if scope else ''}"
+    lines = [f"{head}  *{stamp}*",
+             f"**{len(fresh)}** new match{'es' if len(fresh) != 1 else ''}",
+             "➖➖➖➖➖➖➖➖➖➖"]
+
+    for i, j in enumerate(show, 1):
+        tag = ""
+        if "SPONSOR-FRIENDLY" in j["flags"]:
+            tag = "  ✅ *sponsor*"
+        elif "NEEDS-LOCAL-AUTH" in j["flags"]:
+            tag = "  ⚠️ *needs local auth*"
+
+        meta = " · ".join(x for x in [esc_md(j["company"]), esc_md(j["location"])] if x)
+        lines.append("")
+        lines.append(f"**{i}. {esc_md(j['title'])}**{tag}")
+        lines.append(f"*{meta}*")
+        lines.append(f"⭐ {j['score']}  ·  [Open posting]({j['url']})")
+
+    lines.append("")
+    lines.append("➖➖➖➖➖➖➖➖➖➖")
+    if len(fresh) > len(show):
+        lines.append(f"*+{len(fresh) - len(show)} more saved to history*")
+    lines.append("Send `/tailor N` to build a CV + cover letter.")
+    return "\n".join(lines)
+
+
 def main():
     test_mode = "--test" in sys.argv
     stats_mode = "--stats" in sys.argv
@@ -589,37 +656,20 @@ def main():
     if not show:
         return 0  # silence => cron sends nothing
 
-    # 4. render digest (Telegram HTML -- see esc() for why not Markdown)
+    # 4. render digest
     stamp = datetime.now(timezone.utc).astimezone().strftime("%d %b, %H:%M")
     scope = os.environ.get("JOBWATCH_LABEL", "")
-    head = f"🎯 <b>JobWatch</b>{(' · ' + esc(scope)) if scope else ''}"
-    lines = [f"{head}  <i>{stamp}</i>",
-             f"<b>{len(fresh)}</b> new match{'es' if len(fresh) != 1 else ''}",
-             "➖➖➖➖➖➖➖➖➖➖"]
 
-    for i, j in enumerate(show, 1):
-        tag = ""
-        if "SPONSOR-FRIENDLY" in j["flags"]:
-            tag = "  ✅ <i>sponsor</i>"
-        elif "NEEDS-LOCAL-AUTH" in j["flags"]:
-            tag = "  ⚠️ <i>needs local auth</i>"
+    # Two renderers: HTML for direct Telegram Bot API (--telegram), Markdown
+    # for stdout consumed by Hermes cron which delivers using Markdown.
+    if tg_mode:
+        digest = _render_html(show, fresh, stamp, scope)
+    else:
+        digest = _render_md(show, fresh, stamp, scope)
 
-        meta = " · ".join(x for x in [esc(j["company"]), esc(j["location"])] if x)
-        lines.append("")
-        lines.append(f"<b>{i}. {esc(j['title'])}</b>{tag}")
-        lines.append(f"<i>{meta}</i>")
-        lines.append(f"⭐ {j['score']}  ·  <a href=\"{esc(j['url'])}\">Open posting</a>")
-
-    lines.append("")
-    lines.append("➖➖➖➖➖➖➖➖➖➖")
-    if len(fresh) > len(show):
-        lines.append(f"<i>+{len(fresh) - len(show)} more saved to history</i>")
-    lines.append("Send <code>/tailor N</code> to build a CV + cover letter.")
-
-    digest = "\n".join(lines)
     print(digest)
     if tg_mode:
-        send_telegram(digest)
+        send_telegram(_render_html(show, fresh, stamp, scope))
 
     # 5. persist
     if not test_mode:
