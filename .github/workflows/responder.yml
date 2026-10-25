@@ -1,0 +1,51 @@
+name: JobWatch Responder
+
+# Answers Telegram commands while the laptop is off. When the laptop's Hermes
+# gateway is polling, Telegram returns 409 and this job stands down instantly,
+# so the two never fight over the chat.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # every 10 minutes
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jobwatch-responder
+  cancel-in-progress: false
+
+jobs:
+  respond:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Answer pending commands
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          JOBWATCH_DATA_DIR: ${{ github.workspace }}/state
+        run: |
+          mkdir -p state
+          python jobwatch_responder.py
+
+      - name: Persist state
+        run: |
+          git config user.name  "jobwatch-bot"
+          git config user.email "jobwatch-bot@users.noreply.github.com"
+          git add state/ || true
+          if git diff --staged --quiet; then
+            echo "no state change"
+          else
+            git commit -m "responder: state $(date -u +%Y-%m-%dT%H:%MZ)"
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi

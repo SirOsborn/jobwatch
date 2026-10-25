@@ -78,14 +78,52 @@ def fetch_json(url, data=None, timeout=None, headers=None):
     return json.loads(fetch(url, data=data, timeout=timeout, headers=headers))
 
 
+MOJI = {"â€™": "'", "â€˜": "'", "â€œ": '"', "â€\x9d": '"', "â€“": "-",
+        "â€”": "-", "â€¦": "...", "Â ": " ", "Ã©": "e", "Ã¢": "a"}
+
+
+def fix_mojibake(s):
+    """Repair UTF-8 that was decoded as cp1252 somewhere upstream.
+
+    RemoteOK and Remotive descriptions routinely arrive double-encoded, which
+    renders as 'donât' instead of 'don't'.
+    """
+    if not s:
+        return s
+    if "Ã" in s or "â" in s or "Â" in s:
+        try:
+            repaired = s.encode("cp1252", errors="ignore").decode("utf-8", errors="ignore")
+            if repaired and repaired.count("\ufffd") <= s.count("\ufffd"):
+                s = repaired
+        except Exception:
+            pass
+    for bad, good in MOJI.items():
+        s = s.replace(bad, good)
+    return s
+
+
+def esc(s):
+    """Escape for Telegram HTML parse mode.
+
+    HTML mode is used instead of Markdown because job titles legitimately
+    contain '_' and '*' (e.g. 'jobs_history', 'C++ / *nix'), which silently
+    break Markdown parsing and make Telegram render the raw asterisks.
+    """
+    return (str(s or "")
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;"))
+
+
 def clean(text, limit=None):
     if not text:
         return ""
     text = re.sub(r"<[^>]+>", " ", str(text))
     text = html.unescape(text)
+    text = fix_mojibake(text)
     text = re.sub(r"\s+", " ", text).strip()
     if limit and len(text) > limit:
-        text = text[:limit].rsplit(" ", 1)[0] + "..."
+        text = text[:limit].rsplit(" ", 1)[0] + "…"
     return text
 
 
@@ -433,12 +471,24 @@ def send_telegram(text):
     if not token or not chat:
         print("[telegram] TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set", file=sys.stderr)
         return False
-    # Telegram caps messages at 4096 chars
-    for chunk in [text[i:i + 3800] for i in range(0, len(text), 3800)]:
+    # Telegram caps messages at 4096 chars. Split on blank lines so a job entry
+    # is never cut in half (which would also break the HTML tag balance).
+    chunks, cur = [], ""
+    for block in text.split("\n\n"):
+        if len(cur) + len(block) + 2 > 3500 and cur:
+            chunks.append(cur)
+            cur = block
+        else:
+            cur = f"{cur}\n\n{block}" if cur else block
+    if cur:
+        chunks.append(cur)
+
+    ok = True
+    for chunk in chunks:
         payload = urllib.parse.urlencode({
             "chat_id": chat,
             "text": chunk,
-            "parse_mode": "Markdown",
+            "parse_mode": "HTML",
             "disable_web_page_preview": "true",
         }).encode()
         try:
@@ -447,19 +497,23 @@ def send_telegram(text):
                 data=payload, headers={"User-Agent": UA})
             with urllib.request.urlopen(req, timeout=30, context=_ctx) as r:
                 if not json.load(r).get("ok"):
-                    return False
+                    ok = False
         except Exception as e:
-            # Markdown can fail on odd characters; retry as plain text
+            # Fall back to plain text with the tags stripped, so a malformed
+            # entry degrades to readable output instead of sending nothing.
             try:
-                payload = urllib.parse.urlencode({"chat_id": chat, "text": chunk}).encode()
+                plain = re.sub(r"<[^>]+>", "", chunk)
+                payload = urllib.parse.urlencode({
+                    "chat_id": chat, "text": plain,
+                    "disable_web_page_preview": "true"}).encode()
                 req = urllib.request.Request(
                     f"https://api.telegram.org/bot{token}/sendMessage",
                     data=payload, headers={"User-Agent": UA})
                 urllib.request.urlopen(req, timeout=30, context=_ctx).read()
             except Exception:
                 print(f"[telegram] send failed: {type(e).__name__}", file=sys.stderr)
-                return False
-    return True
+                ok = False
+    return ok
 
 
 def main():
@@ -535,27 +589,32 @@ def main():
     if not show:
         return 0  # silence => cron sends nothing
 
-    # 4. render digest
-    stamp = datetime.now(timezone.utc).astimezone().strftime("%d %b %Y, %H:%M")
-    lines = [f"*JobWatch* — {len(fresh)} new match{'es' if len(fresh) != 1 else ''}  ({stamp})", ""]
+    # 4. render digest (Telegram HTML -- see esc() for why not Markdown)
+    stamp = datetime.now(timezone.utc).astimezone().strftime("%d %b, %H:%M")
+    scope = os.environ.get("JOBWATCH_LABEL", "")
+    head = f"🎯 <b>JobWatch</b>{(' · ' + esc(scope)) if scope else ''}"
+    lines = [f"{head}  <i>{stamp}</i>",
+             f"<b>{len(fresh)}</b> new match{'es' if len(fresh) != 1 else ''}",
+             "➖➖➖➖➖➖➖➖➖➖"]
 
     for i, j in enumerate(show, 1):
-        tags = ""
+        tag = ""
         if "SPONSOR-FRIENDLY" in j["flags"]:
-            tags += " ✅sponsor"
-        if "NEEDS-LOCAL-AUTH" in j["flags"]:
-            tags += " ⚠️needs-local-auth"
-        loc = j["location"] or "—"
-        lines.append(f"*{i}. {j['title']}*{tags}")
-        lines.append(f"   {j['company']} · {loc} · score {j['score']}")
-        if j.get("desc"):
-            lines.append(f"   _{clean(j['desc'], cfg.get('max_description_chars', 400))}_")
-        lines.append(f"   {j['url']}")
-        lines.append("")
+            tag = "  ✅ <i>sponsor</i>"
+        elif "NEEDS-LOCAL-AUTH" in j["flags"]:
+            tag = "  ⚠️ <i>needs local auth</i>"
 
+        meta = " · ".join(x for x in [esc(j["company"]), esc(j["location"])] if x)
+        lines.append("")
+        lines.append(f"<b>{i}. {esc(j['title'])}</b>{tag}")
+        lines.append(f"<i>{meta}</i>")
+        lines.append(f"⭐ {j['score']}  ·  <a href=\"{esc(j['url'])}\">Open posting</a>")
+
+    lines.append("")
+    lines.append("➖➖➖➖➖➖➖➖➖➖")
     if len(fresh) > len(show):
-        lines.append(f"…and {len(fresh) - len(show)} more in jobs_history.jsonl")
-    lines.append("Reply with a number to have the CV + cover letter tailored.")
+        lines.append(f"<i>+{len(fresh) - len(show)} more saved to history</i>")
+    lines.append("Send <code>/tailor N</code> to build a CV + cover letter.")
 
     digest = "\n".join(lines)
     print(digest)
