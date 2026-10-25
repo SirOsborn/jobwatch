@@ -33,6 +33,10 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           JOBWATCH_DATA_DIR: ${{ github.workspace }}/state
+          # Liveness comes from the laptop's heartbeat, never from probing
+          # Telegram -- a getUpdates probe evicts the gateway's poll.
+          LAPTOP_HEARTBEAT: ${{ vars.LAPTOP_HEARTBEAT }}
+          HEARTBEAT_STALE_SECONDS: '900'
         run: |
           mkdir -p state
           python jobwatch_responder.py
