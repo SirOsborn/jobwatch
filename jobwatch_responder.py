@@ -19,6 +19,8 @@ import os
 import re
 import ssl
 import sys
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -112,9 +114,38 @@ def handle(cmd, arg):
     say(OFFLINE_HELP)
 
 
+def gateway_is_live():
+    """True when the laptop's Hermes gateway owns the Telegram poll.
+
+    Telegram rejects a second concurrent getUpdates with HTTP 409. A
+    *non-blocking* probe (timeout=0) returns instantly and can slip through a
+    gap between the gateway's polls, reporting "no conflict" while the laptop
+    is actually on -- which would make us swallow a message the agent should
+    have handled. Using a long poll forces an overlap, and probing twice makes
+    a false negative very unlikely.
+    """
+    for attempt in range(2):
+        try:
+            api("getUpdates", {"offset": -1, "limit": 1, "timeout": 8}, timeout=25)
+        except urllib.error.HTTPError as e:
+            if e.code == 409:
+                return True
+        except Exception:
+            # Network trouble: assume the laptop is live and stay silent rather
+            # than risk a wrong "laptop is off" reply.
+            return True
+        if attempt == 0:
+            time.sleep(2)
+    return False
+
+
 def main():
     if not TOKEN or not CHAT:
         print("missing telegram credentials", file=sys.stderr)
+        return 0
+
+    if gateway_is_live():
+        print("gateway on the laptop is polling (409) -> standing down")
         return 0
 
     offset = load_offset()
@@ -122,8 +153,7 @@ def main():
         res = api("getUpdates", {"offset": offset, "timeout": 0, "limit": 20})
     except urllib.error.HTTPError as e:
         if e.code == 409:
-            # Gateway on the laptop owns the poll -> laptop is ON. Do nothing.
-            print("409: laptop gateway is live; standing down")
+            print("409 on fetch: laptop came online; standing down")
             return 0
         print(f"getUpdates failed: {e}", file=sys.stderr)
         return 0
