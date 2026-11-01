@@ -1,6 +1,6 @@
 {
   "_comment": "JobWatch config for Sun Heng. Tuned for AI/ML ENGINEERING and applied-AI full-stack roles (technical track, not business analytics). Cambodia is top priority. No AI tokens are used by the watcher.",
-  "data_dir": "state",
+  "data_dir": "/home/heng/.hermes/scripts/state",
   "score_threshold": 60,
   "max_alerts_per_run": 8,
   "max_description_chars": 400,
